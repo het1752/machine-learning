@@ -1,0 +1,73 @@
+import numpy as np
+import pandas as pd
+
+# Reproducibility
+np.random.seed(0)
+
+# ----- Create Example Dataset -----
+num_samples = 10
+num_features = 4
+num_classes = 3
+
+# Create random continuous features
+X = np.random.randn(num_samples, num_features)
+
+# Random target classes (0, 1, 2)
+y = np.random.choice(num_classes, size=num_samples)
+
+# Create DataFrame
+feature_columns = [f'Feature_{i+1}' for i in range(num_features)]
+df = pd.DataFrame(X, columns=feature_columns)
+df['Target'] = y
+
+print("Dataset:")
+print(df)
+
+# ----- Group by Target Class -----
+grouped = df.groupby('Target')
+
+# Mean and Variance per feature per class
+means = grouped.mean()
+variances = grouped.var()
+
+print("\nMeans (per class):")
+print(means)
+
+print("\nVariances (per class):")
+print(variances)
+
+# ----- Gaussian Probability Function -----
+def gaussian_prob(x, mean, var):
+    eps = 1e-6  # small value to prevent division by zero
+    coef = 1.0 / np.sqrt(2.0 * np.pi * (var + eps))
+    exponent = np.exp(- ((x - mean) ** 2) / (2 * (var + eps)))
+    return coef * exponent
+
+# ----- Calculate Per-Feature Conditional Probabilities -----
+rows = []
+
+for idx, row in df.iterrows():
+    sample_probs = {}
+    
+    # For each class
+    for target_class in means.index:
+        
+        # For each feature
+        for feature in feature_columns:
+            x_value = row[feature]
+            mu = means.loc[target_class, feature]
+            var = variances.loc[target_class, feature]
+            
+            prob = gaussian_prob(x_value, mu, var)
+            
+            # Key example: "Feature_1|Y=0"
+            key = f'{feature}|Y={target_class}'
+            sample_probs[key] = prob
+    
+    rows.append(sample_probs)
+
+# Convert to DataFrame
+per_feature_cond_prob_df = pd.DataFrame(rows)
+
+print("\nPer-Feature Conditional Probability DataFrame (Shape {}):".format(per_feature_cond_prob_df.shape))
+print(per_feature_cond_prob_df)
